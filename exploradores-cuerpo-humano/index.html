@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¡Exploradores del cuerpo humano!</title>
+  <!-- Única dependencia externa: tipografía de Google Fonts.
+       Si no hay internet, la app funciona igual con la tipografía del sistema. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Degradados compartidos por todas las ilustraciones (dan el efecto de volumen) -->
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true">
+    <defs>
+      <radialGradient id="gSkin" cx="40%" cy="30%" r="80%">
+        <stop offset="0" stop-color="#ffe2c9"/><stop offset="1" stop-color="#f4b98f"/>
+      </radialGradient>
+      <radialGradient id="gInside" cx="50%" cy="35%" r="75%">
+        <stop offset="0" stop-color="#fff6ee"/><stop offset="1" stop-color="#ffdcc4"/>
+      </radialGradient>
+      <radialGradient id="gHeart" cx="35%" cy="30%" r="80%">
+        <stop offset="0" stop-color="#ff8a8a"/><stop offset=".55" stop-color="#e63946"/><stop offset="1" stop-color="#a81c2c"/>
+      </radialGradient>
+      <radialGradient id="gLung" cx="40%" cy="30%" r="85%">
+        <stop offset="0" stop-color="#ffc9d2"/><stop offset=".6" stop-color="#f58fa3"/><stop offset="1" stop-color="#d9607a"/>
+      </radialGradient>
+      <radialGradient id="gBrain" cx="40%" cy="28%" r="85%">
+        <stop offset="0" stop-color="#ffd6e0"/><stop offset=".6" stop-color="#f7a3b8"/><stop offset="1" stop-color="#e0758f"/>
+      </radialGradient>
+      <radialGradient id="gStom" cx="40%" cy="28%" r="85%">
+        <stop offset="0" stop-color="#ffd0b8"/><stop offset=".6" stop-color="#f79a7a"/><stop offset="1" stop-color="#d96a4f"/>
+      </radialGradient>
+      <linearGradient id="gShirt" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#3ed6c2"/><stop offset="1" stop-color="#119e8e"/>
+      </linearGradient>
+      <linearGradient id="gShorts" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#6aa5ff"/><stop offset="1" stop-color="#3b6fd6"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- Escenario de 1366 x 768 que se escala a cualquier pantalla (sin scroll) -->
+  <div id="stage">
+    <div class="bg-deco" aria-hidden="true">
+      <span style="left:4%;top:16%">🔬</span><span style="left:92%;top:14%">🧪</span>
+      <span style="left:88%;top:80%">🧬</span><span style="left:3%;top:82%">🩺</span>
+      <span style="left:47%;top:90%">❤️</span><span style="left:62%;top:11%">🍎</span>
+    </div>
+
+    <!-- Barra superior: navegación, progreso y estrellas -->
+    <header id="hud">
+      <button class="hud-btn" id="hudHome" title="Inicio">🏠</button>
+      <button class="hud-btn wide" id="hudMap">🗺️ Mapa</button>
+      <div class="hud-progress">
+        <div class="bar"><div class="fill" id="hudFill"></div></div>
+        <span id="hudCount">0 de 13 actividades</span>
+      </div>
+      <button class="hud-btn wide" id="hudMedals">🏅 Medallas</button>
+      <div class="hud-stars" id="hudStars">⭐ <b id="hudStarN">0</b></div>
+    </header>
+
+    <!-- Aquí se dibuja cada pantalla -->
+    <main id="screen"></main>
+
+    <!-- Ventanas emergentes: festejos, medallas, confirmaciones -->
+    <div id="overlay" hidden></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
