@@ -128,7 +128,7 @@ const RETRY = ['¡Casi!', 'Probá otra vez.', '¡No pasa nada!', 'Vamos de nuevo
 
 /* ▼▼▼ PEGAR AQUÍ la URL de la aplicación web de Google Apps Script (ver LEEME.txt) ▼▼▼
    Si queda vacía, la app funciona igual pero no envía nada a la planilla. */
-const SHEET_URL = '';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwI_TprIe3c6tOMXyJPcd7tVSFPyeWQDxHUanoG1YWMyidRksuX-fE6A8Bgmp4s9vpg/exec';
 
 /* Puntos por consigna según el intento: 1.º, 2.º, 3.º y 4.º en adelante */
 const PTS = [10, 7, 4, 1];
