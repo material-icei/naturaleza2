@@ -4,10 +4,10 @@
 
    ÍNDICE
    1. Contenidos (órganos, sistemas, módulos, medallas)  ← fácil de editar
-   2. Progreso guardado (localStorage)
+   2. Progreso guardado (localStorage) y envío a Google Sheets
    3. Ilustraciones SVG (cuerpo, órganos, Doc)
    4. Utilidades (pantalla, arrastrar, festejos)
-   5. Pantallas (portada, mapa, módulo, medallas, diploma)
+   5. Pantallas (registro, portada, mapa, módulo, medallas, diploma)
    6. Actividades (lecciones y juegos)
    7. Inicio
    ========================================================= */
@@ -104,7 +104,7 @@ const HABITS = [
 const MODULES = [
   { id: 'm1', title: 'Conocemos nuestro cuerpo', emoji: '🧍', color: '#14b8a6', lead: 'Cabeza, tronco y extremidades', acts: ['m1_explora', 'm1_partes', 'm1_uso'] },
   { id: 'm2', title: 'Los órganos principales', emoji: '🫀', color: '#ff5d8f', lead: 'Corazón, pulmones, cerebro, estómago e intestino', acts: ['m2_explora', 'm2_donde', 'm2_unir', 'm2_quien', 'm2_mision'] },
-  { id: 'm3', title: 'Los sistemas del cuerpo', emoji: '⚙️', color: '#7c5cff', lead: 'Los órganos trabajan en equipo', acts: ['m3_explora', 'm3_sistema', 'm3_vf'] },
+  { id: 'm3', title: 'Los sistemas del cuerpo', emoji: '⚙️', color: '#7c5cff', lead: 'Los órganos trabajan en equipo', acts: ['m3_explora', 'm3_sistema', 'm3_vf', 'm3_cuadro', 'm3_sopa'] },
   { id: 'm4', title: 'Cuidamos nuestro cuerpo', emoji: '🍎', color: '#ff8a3d', lead: 'Hábitos para crecer sanos y fuertes', acts: ['m4_explora', 'm4_juego'] }
 ];
 
@@ -126,19 +126,56 @@ const RETRY = ['¡Casi!', 'Probá otra vez.', '¡No pasa nada!', 'Vamos de nuevo
    2. PROGRESO GUARDADO (localStorage)
    ========================================================= */
 
-const STORAGE_KEY = 'exploradoresCuerpoHumano_v1';
-let state = loadState();
+/* ▼▼▼ PEGAR AQUÍ la URL de la aplicación web de Google Apps Script (ver LEEME.txt) ▼▼▼
+   Si queda vacía, la app funciona igual pero no envía nada a la planilla. */
+const SHEET_URL = '';
 
-function loadState() {
-  const base = { stars: 0, done: {}, medals: {} };
+/* Puntos por consigna según el intento: 1.º, 2.º, 3.º y 4.º en adelante */
+const PTS = [10, 7, 4, 1];
+
+/* Se guarda el progreso de cada alumno por separado (sirve para Chromebooks compartidas) */
+const STORAGE_KEY = 'exploradoresCuerpoHumano_v2';
+const GRADES = ['2.º A', '2.º B'];
+function blankState(name, grade) { return { name: name || '', grade: grade || '', done: {}, medals: {}, scores: {}, pending: false }; }
+function loadStore() {
+  const base = { current: null, players: {} };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && typeof saved === 'object') return Object.assign(base, saved);
+    if (saved && typeof saved === 'object' && saved.players) return Object.assign(base, saved);
   } catch (e) { /* sin almacenamiento: se juega igual, pero no se guarda */ }
   return base;
 }
+let store = loadStore();
+let state = store.current && store.players[store.current]
+  ? (store.players[store.current] = Object.assign(blankState(), store.players[store.current]))
+  : blankState();
+let liveBonus = 0; // puntos de la actividad en curso que todavía no se guardaron
+
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* nada */ }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (e) { /* nada */ }
+}
+function cleanName(n) { return String(n).trim().replace(/\s+/g, ' '); }
+function login(name, grade) {
+  const key = cleanName(name).toLowerCase() + '|' + grade;
+  if (!store.players[key]) store.players[key] = blankState(cleanName(name), grade);
+  store.current = key;
+  state = store.players[key] = Object.assign(blankState(), store.players[key]);
+  saveState();
+}
+function logout() { store.current = null; state = blankState(); saveState(); }
+function modScore(m) { return m.acts.reduce((s, a) => s + (state.scores[a] || 0), 0); }
+function totalScore() { return MODULES.reduce((s, m) => s + modScore(m), 0); }
+
+/* Envía el puntaje del alumno a la planilla de Google (una fila por alumno) */
+function syncSheet() {
+  if (!SHEET_URL || !store.current) return;
+  const st = state;
+  st.pending = true; saveState();
+  const data = { nombre: st.name, grado: st.grade, total: totalScore(), actividades: doneCount(), totalActividades: ALL_ACTS.length };
+  MODULES.forEach((m, i) => data['m' + (i + 1)] = modScore(m));
+  fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) })
+    .then(() => { st.pending = false; saveState(); })
+    .catch(() => { /* sin internet: queda pendiente y se reintenta más tarde */ });
 }
 const ALL_ACTS = MODULES.flatMap(m => m.acts);
 function moduleDone(m) { return m.acts.every(a => state.done[a]); }
@@ -328,7 +365,7 @@ window.addEventListener('resize', fitStage);
 
 function updateHud(pop) {
   const n = doneCount(), total = ALL_ACTS.length;
-  $('#hudStarN').textContent = state.stars;
+  $('#hudStarN').textContent = totalScore() + liveBonus;
   $('#hudFill').style.width = (n / total * 100) + '%';
   $('#hudCount').textContent = `${n} de ${total} actividades`;
   if (pop) { const h = $('#hudStars'); h.classList.remove('pop'); void h.offsetWidth; h.classList.add('pop'); }
@@ -390,43 +427,83 @@ function makeDnD(root, onDrop) {
    ========================================================= */
 
 function showHome() {
+  liveBonus = 0; updateHud();
+  if (!store.current) return showRegister();
   screenEl.innerHTML = `
     <div class="home">
       <div class="home-text">
+        <div class="hello">👋 ¡Hola, <b>${esc(state.name)}</b>! · ${state.grade}</div>
         <h1>¡EXPLORADORES <span>DEL CUERPO HUMANO!</span></h1>
         <p class="sub">¿Estás listo para descubrir cómo funciona tu cuerpo?</p>
         <button class="btn big primary" id="btnStart">🚀 ¡COMENZAR A EXPLORAR!</button>
         <div class="home-row">
           <button class="btn" id="btnMap">🗺️ Mapa de aventuras</button>
-          <div class="pill">⭐ ${state.stars} ${state.stars === 1 ? 'estrella' : 'estrellas'}</div>
+          <div class="pill">⭐ ${totalScore()} puntos</div>
         </div>
-        <button class="link" id="btnReset">↺ Reiniciar progreso</button>
+        <button class="link" id="btnSwitch">👤 Cambiar de alumno</button>
+        <button class="link" id="btnReset">↺ Reiniciar mi progreso</button>
       </div>
       <div class="home-body">${bodySVG({ organs: true })}</div>
       <div class="home-doc">
-        <div class="bubble">¡Hola! Soy <b>Doc</b>. ¡Vamos a explorar el cuerpo humano juntos!</div>
+        <div class="bubble">¡Vamos a explorar el cuerpo humano juntos! Cuanto menos intentos, ¡más puntos!</div>
         ${docSVG()}
       </div>
     </div>`;
   $('#btnStart').onclick = showMap;
   $('#btnMap').onclick = showMap;
   $('#btnReset').onclick = askReset;
+  $('#btnSwitch').onclick = () => { logout(); updateHud(); showRegister(); };
+}
+
+/* Evita que un nombre con símbolos rompa la página */
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* Registro: nombre y grado (sin contraseñas ni correos) */
+function showRegister() {
+  let grade = '';
+  screenEl.innerHTML = `
+    <div class="reg">
+      <div class="reg-card panel">
+        <h2>¡Exploradores del cuerpo humano!</h2>
+        <label for="regName">✏️ Escribí tu nombre y apellido</label>
+        <input id="regName" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Nombre y apellido">
+        <label>🏫 Elegí tu grado</label>
+        <div class="reg-grades">${GRADES.map(g => `<button class="grade" data-g="${g}">${g}</button>`).join('')}</div>
+        <p class="reg-msg" id="regMsg"></p>
+        <button class="btn big primary" id="regGo">🚀 ¡Entrar!</button>
+      </div>
+      <div class="reg-doc"><div class="bubble">¡Hola! Soy <b>Doc</b>. Decime quién sos para guardar tus puntos.</div>${docSVG()}</div>
+    </div>`;
+  const input = $('#regName'), msg = $('#regMsg');
+  $$('.grade').forEach(b => b.onclick = () => { grade = b.dataset.g; $$('.grade').forEach(x => x.classList.toggle('sel', x === b)); msg.textContent = ''; });
+  const go = () => {
+    const name = cleanName(input.value);
+    if (name.length < 3) { msg.textContent = 'Escribí tu nombre y apellido.'; return input.focus(); }
+    if (!grade) { msg.textContent = 'Tocá tu grado.'; return; }
+    login(name, grade); updateHud(); showHome();
+    if (state.pending) syncSheet();
+  };
+  $('#regGo').onclick = go;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  input.focus();
 }
 
 function askReset() {
   openModal(`<div class="modal">
     <div class="huge">🤔</div><h2>¿Empezar de nuevo?</h2>
-    <p>Se van a borrar tus estrellas y medallas.</p>
+    <p>Se van a borrar tus puntos y medallas.</p>
     <div class="btns"><button class="btn" id="noReset">No, volver</button><button class="btn primary" id="yesReset">Sí, borrar todo</button></div>
   </div>`);
   $('#noReset').onclick = closeModal;
   $('#yesReset').onclick = () => {
-    state = { stars: 0, done: {}, medals: {} };
+    state = store.players[store.current] = blankState(state.name, state.grade);
     saveState(); updateHud(); closeModal(); showHome();
   };
 }
 
 function showMap() {
+  liveBonus = 0; updateHud();
+  if (!store.current) return showRegister();
   const pos = [[470, 110], [730, 340], [990, 110], [1220, 340]];
   const next = MODULES.findIndex((m, i) => moduleUnlocked(i) && !moduleDone(m));
   const nodes = MODULES.map((m, i) => {
@@ -467,6 +544,7 @@ function showMap() {
 }
 
 function showModule(i) {
+  liveBonus = 0; updateHud();
   const m = MODULES[i];
   const tiles = m.acts.map(id => {
     const a = ACTS[id];
@@ -486,6 +564,7 @@ function showModule(i) {
 }
 
 function showMedals() {
+  if (!store.current) return;
   const card = m => `<div class="medal ${state.medals[m.id] ? '' : 'off'}"><span class="oe">${m.emoji}</span>${m.name}<small>${m.how}</small></div>`;
   openModal(`<div class="modal">
     <h2>🏅 Mis medallas</h2>
@@ -504,10 +583,10 @@ function showDiploma() {
       <div class="diploma">
         <div class="d1">🎓 DIPLOMA 🎓</div>
         <div class="d3">Doc y los Exploradores del Cuerpo Humano nombran a</div>
-        <div class="line"></div>
-        <div class="d3">como</div>
-        <div class="d2">EXPERTO EN EL<br>CUERPO HUMANO</div>
-        <div class="d4">⭐ ${state.stars} estrellas &nbsp; ${MEDALS.filter(m => m.kind === 'medalla').map(m => m.emoji).join(' ')}</div>
+        <div class="dname">${esc(state.name)}</div>
+        <div class="d3">de ${state.grade}</div>
+                <div class="d2">EXPERTO EN EL<br>CUERPO HUMANO</div>
+        <div class="d4">⭐ ${totalScore()} puntos &nbsp; ${MEDALS.filter(m => m.kind === 'medalla').map(m => m.emoji).join(' ')}</div>
         <div class="dl">${today}<br>¡Felicitaciones!</div>
         <div class="dd">${docSVG()}</div>
       </div>
@@ -525,8 +604,9 @@ function showDiploma() {
    Cada actividad recibe "ctx" con:
      ctx.main        → zona donde se dibuja
      ctx.say(texto)  → Doc habla
-     ctx.good()      → respuesta correcta: suma una estrella
-     ctx.bad(pista)  → respuesta incorrecta: Doc da una pista (nunca resta)
+     ctx.good(msg, clave) → respuesta correcta: suma 10, 7, 4 o 1 puntos según los intentos
+     ctx.bad(pista, clave) → intento fallido: Doc da una pista y la consigna vale menos
+                             (clave = consigna; se usa cuando hay varias a la vez)
      ctx.dots(i, n)  → indicador de rondas
      ctx.ready()     → muestra el botón «¡Terminé!» (lecciones)
      ctx.finish()    → actividad completada
@@ -538,7 +618,8 @@ function startAct(id) {
   const a = ACTS[id];
   const modIndex = MODULES.findIndex(m => m.acts.includes(id));
   const token = {}; current = token;
-  let earned = 0;
+  let earned = 0; const tries = {};
+  liveBonus = 0; updateHud();
   screenEl.innerHTML = `
     <div class="act">
       <div class="act-head">
@@ -562,12 +643,14 @@ function startAct(id) {
     main: $('#actMain'),
     alive: () => current === token,
     say,
-    good(msg) {
-      earned++; state.stars++; saveState(); updateHud(true);
-      say(`⭐ ${msg || pick(PRAISE)}`, 'ok');
+    good(msg, key = '_') {
+      const p = PTS[Math.min(tries[key] || 0, PTS.length - 1)];
+      tries[key] = 0; earned += p;
+      liveBonus = Math.max(0, earned - (state.scores[id] || 0)); updateHud(true);
+      say(`<b>⭐ +${p} puntos</b><br>${msg || pick(PRAISE)}`, 'ok');
       doc.classList.remove('happy'); void doc.offsetWidth; doc.classList.add('happy');
     },
-    bad(hint) { say(`${pick(RETRY)} <br>💡 <b>Pista:</b> ${hint}`, 'hint'); },
+    bad(hint, key = '_') { tries[key] = (tries[key] || 0) + 1; say(`${pick(RETRY)} <br>💡 <b>Pista:</b> ${hint}`, 'hint'); },
     dots(i, n) {
       $('#dots').innerHTML = Array.from({ length: n }, (_, k) => `<i class="${k < i ? 'on' : k === i ? 'now' : ''}"></i>`).join('');
     },
@@ -585,15 +668,17 @@ function startAct(id) {
       current = null;
       const modWasDone = moduleDone(MODULES[modIndex]), wasAll = allDone();
       state.done[id] = true;
+      const best = state.scores[id] || 0;
+      state.scores[id] = Math.max(best, earned); liveBonus = 0;
       const fresh = MEDALS.filter(m => !state.medals[m.id] && m.test(state));
       fresh.forEach(m => state.medals[m.id] = true);
-      saveState(); updateHud();
+      saveState(); updateHud(true); syncSheet();
       const modNow = moduleDone(MODULES[modIndex]) && !modWasDone;
       const allNow = allDone() && !wasAll;
       openModal(`<div class="modal">${confettiHTML()}
         <div class="huge">${allNow ? '🏆' : '🎉'}</div>
         <h2>${allNow ? '¡Completaste toda la aventura!' : modNow ? '¡Módulo superado!' : '¡Actividad completada!'}</h2>
-        <p>${earned ? `Ganaste <b>${earned} ⭐</b> en esta actividad.` : '¡Muy buen trabajo!'}</p>
+        <p>Sumaste <b>${earned} puntos ⭐</b> en esta actividad.${best > earned ? `<br>Tu mejor puntaje acá: <b>${best}</b>.` : ''}</p>
         ${fresh.map(m => `<div class="new-medal"><span class="oe">${m.emoji}</span>${m.kind === 'insignia' ? 'Insignia: ' + m.how : 'Medalla: ' + m.name}</div>`).join('')}
         <div class="btns">
           <button class="btn" id="endAgain">🔁 Otra vez</button>
@@ -647,11 +732,11 @@ function playLabels(ctx, cfg) {
     if (zone.classList.contains('filled')) return;
     if (chip.dataset.id === zone.dataset.drop) {
       zone.classList.add('filled'); $('text', zone).textContent = cfg.words[chip.dataset.id];
-      chip.remove(); ctx.good();
+      ctx.good(null, chip.dataset.id); chip.remove();
       if (--left === 0) ctx.later(() => ctx.finish(), 1300);
     } else {
       chip.classList.remove('oops'); void chip.offsetWidth; chip.classList.add('oops');
-      ctx.bad(cfg.hints[chip.dataset.id]);
+      ctx.bad(cfg.hints[chip.dataset.id], chip.dataset.id);
     }
   });
 }
@@ -839,11 +924,12 @@ const ACTS = {
         if (sel.dataset.id === right.dataset.id) {
           const a = pinPos(sel), b = pinPos(right);
           line(a[0], a[1], b[0] - 10, b[1], '#35c46a').setAttribute('marker-end', 'url(#arrow)');
-          sel.classList.add('ok'); right.classList.add('ok'); select(null); ctx.good();
+          const sid = sel.dataset.id;
+          sel.classList.add('ok'); right.classList.add('ok'); select(null); ctx.good(null, sid);
           if (--left === 0) ctx.later(() => ctx.finish(), 1400);
         } else {
           right.classList.remove('oops'); void right.offsetWidth; right.classList.add('oops');
-          ctx.bad(`${ORGANS[sel.dataset.id].name}: ${ORGANS[sel.dataset.id].where.toLowerCase()} Pensá qué hace ahí.`);
+          ctx.bad(`${ORGANS[sel.dataset.id].name}: ${ORGANS[sel.dataset.id].where.toLowerCase()} Pensá qué hace ahí.`, sel.dataset.id);
         }
       };
       $$('.m-left', box).forEach(c => c.addEventListener('pointerdown', e => {
@@ -958,11 +1044,11 @@ const ACTS = {
         if (ORGANS[k].system === zone.dataset.drop) {
           const d = document.createElement('div'); d.innerHTML = organSVG(k);
           $('.got', zone).appendChild(d); zone.classList.add('yes'); chip.remove();
-          ctx.good(`¡Sí! ${ORGANS[k].name}: ${SYSTEMS[ORGANS[k].system].name.toLowerCase()}.`);
+          ctx.good(`¡Sí! ${ORGANS[k].name}: ${SYSTEMS[ORGANS[k].system].name.toLowerCase()}.`, k);
           if (--left === 0) ctx.later(() => ctx.finish(), 1500);
         } else {
           chip.classList.remove('oops'); void chip.offsetWidth; chip.classList.add('oops');
-          ctx.bad(tip[k]);
+          ctx.bad(tip[k], k);
         }
       });
     }
@@ -987,6 +1073,123 @@ const ACTS = {
         ok: ans ? '¡Correcto! Es verdadero.' : `¡Correcto! Es falso. ${hint}`,
         options: [{ id: 'v', label: '👍 Verdadero', cls: 't' }, { id: 'f', label: '👎 Falso', cls: 'f' }]
       })), 'tf');
+    }
+  },
+
+  m3_cuadro: {
+    title: 'Completar el cuadro', emoji: '📋',
+    intro: 'Completá el cuadro: arrastrá el <b>nombre</b> y la <b>función</b> de cada órgano.',
+    run(ctx) {
+      const rows = shuffle(ORGAN_IDS);
+      ctx.main.innerHTML = `<div class="row">
+        <div class="cuadro panel">
+          <div class="c-row c-head"><span>Órgano</span><span>Nombre</span><span>Función</span></div>
+          ${rows.map(k => `<div class="c-row"><div class="c-img">${organSVG(k)}</div>
+            <div class="c-drop" data-drop="n:${k}"></div><div class="c-drop" data-drop="f:${k}"></div></div>`).join('')}
+        </div>
+        <div class="c-bank">
+          <div class="c-title">Nombres</div>
+          <div class="c-names">${shuffle(ORGAN_IDS).map(k => `<div class="chip drag" data-id="n:${k}">${ORGANS[k].name}</div>`).join('')}</div>
+          <div class="c-title">Funciones</div>
+          <div class="c-funcs">${shuffle(ORGAN_IDS).map(k => `<div class="chip fn drag" data-id="f:${k}">${ORGANS[k].short}</div>`).join('')}</div>
+        </div>
+      </div>`;
+      let left = ORGAN_IDS.length * 2;
+      makeDnD(ctx.main, (chip, zone) => {
+        if (zone.classList.contains('filled')) return;
+        const id = chip.dataset.id, [type, k] = id.split(':');
+        if (id === zone.dataset.drop) {
+          zone.classList.add('filled'); zone.textContent = chip.textContent;
+          ctx.good(null, id); chip.remove();
+          if (--left === 0) ctx.later(() => ctx.finish(), 1400);
+        } else if (type !== zone.dataset.drop[0]) {
+          ctx.say(type === 'n' ? 'Los nombres van en la columna <b>Nombre</b>.' : 'Las funciones van en la columna <b>Función</b>.', 'hint');
+        } else {
+          chip.classList.remove('oops'); void chip.offsetWidth; chip.classList.add('oops');
+          ctx.bad(type === 'n' ? `${ORGANS[k].name}: ${ORGANS[k].where.toLowerCase()}` : `Eso lo hace un órgano que está ${ORGANS[k].where.toLowerCase()}`, id);
+        }
+      });
+    }
+  },
+
+  m3_sopa: {
+    title: 'Sopa de letras', emoji: '🔤',
+    intro: 'Buscá las <b>10 palabras</b>. Van hacia la derecha ➡ o hacia abajo ⬇. Arrastrá de la primera letra a la última.',
+    run(ctx) {
+      /* [palabra en la grilla (sin tilde), palabra para mostrar, pista] */
+      const WORDS = [
+        ['CORAZON', 'Corazón', '❤️'], ['PULMONES', 'Pulmones', '🫁'], ['CEREBRO', 'Cerebro', '🧠'],
+        ['ESTOMAGO', 'Estómago', '🍽️'], ['INTESTINO', 'Intestino', '🌀'], ['DIGESTIVO', 'Digestivo', '🍎'],
+        ['NERVIOSO', 'Nervioso', '⚡'], ['BOMBEAR', 'Bombear', '🩸'], ['RESPIRAR', 'Respirar', '🌬️'], ['ABSORBER', 'Absorber', '💧']
+      ];
+      const R = 10, C = 12, COLORS = ['#ffd6a5', '#caffbf', '#9bf6ff', '#bdb2ff', '#ffc6ff', '#fdffb6', '#a0e7e5', '#ffadad', '#b9fbc0', '#cfbaf0'];
+      /* Arma la grilla: ubica las palabras al azar y rellena con letras */
+      let grid;
+      build: for (let attempt = 0; attempt < 200; attempt++) {
+        grid = Array.from({ length: R }, () => Array(C).fill(''));
+        for (const [w] of WORDS.slice().sort((a, b) => b[0].length - a[0].length)) {
+          let ok = false;
+          for (let t = 0; t < 300 && !ok; t++) {
+            const down = Math.random() < 0.5;
+            const r = Math.floor(Math.random() * (down ? R - w.length + 1 : R)), c = Math.floor(Math.random() * (down ? C : C - w.length + 1));
+            const cells = [...w].map((ch, i) => [down ? r + i : r, down ? c : c + i]);
+            if (cells.every(([y, x], i) => !grid[y][x] || grid[y][x] === w[i])) { cells.forEach(([y, x], i) => grid[y][x] = w[i]); ok = true; }
+          }
+          if (!ok) continue build;
+        }
+        break;
+      }
+      const ABC = 'ABCDEFGHIJLMNOPRSTUV';
+      grid = grid.map(row => row.map(ch => ch || ABC[Math.floor(Math.random() * ABC.length)]));
+
+      ctx.main.innerHTML = `<div class="row" style="align-items:center">
+        <div class="sl-grid panel" style="grid-template-columns:repeat(${C},1fr)">${grid.map((row, r) => row.map((ch, c) => `<div class="sl-cell" data-r="${r}" data-c="${c}">${ch}</div>`).join('')).join('')}</div>
+        <div class="sl-list panel">${WORDS.map(([w, show, e]) => `<div class="sl-word" data-w="${w}"><span>${e}</span>${show}</div>`).join('')}
+          <small>En la sopa las palabras no llevan tilde.</small></div>
+      </div>`;
+      const box = $('.sl-grid', ctx.main), found = {};
+      const cell = (r, c) => $(`.sl-cell[data-r="${r}"][data-c="${c}"]`, box);
+      const cellAt = (x, y) => { const t = document.elementFromPoint(x, y); const k = t && t.closest('.sl-cell'); return k && box.contains(k) ? k : null; };
+      const line = (a, b) => {
+        const r1 = +a.dataset.r, c1 = +a.dataset.c, r2 = +b.dataset.r, c2 = +b.dataset.c, out = [];
+        if (r1 === r2) for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) out.push(cell(r1, c));
+        else if (c1 === c2) for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) out.push(cell(r, c1));
+        else return null;
+        return out;
+      };
+      const paint = cells => { $$('.sl-cell.pick', box).forEach(x => x.classList.remove('pick')); (cells || []).forEach(x => x.classList.add('pick')); };
+      const check = (a, b) => {
+        const cells = line(a, b); paint(null);
+        if (!cells) return ctx.say('Las palabras van en línea recta: ➡ o ⬇.', 'hint');
+        const s = cells.map(x => x.textContent).join(''), rev = [...s].reverse().join('');
+        const hit = WORDS.find(([w]) => (w === s || w === rev) && !found[w]);
+        if (!hit) return ctx.say('Esa no es una palabra de la lista. ¡Seguí buscando! 🔎', 'hint');
+        const n = Object.keys(found).length; found[hit[0]] = true;
+        cells.forEach(x => { x.classList.add('found'); x.style.background = COLORS[n]; });
+        $(`.sl-word[data-w="${hit[0]}"]`, ctx.main).classList.add('done');
+        ctx.good(`¡Encontraste «${hit[1]}»!`);
+        if (n + 1 === WORDS.length) ctx.later(() => ctx.finish(), 1400);
+      };
+      let start = null, last = null, dragging = false, anchor = null;
+      box.addEventListener('pointerdown', e => {
+        const k = cellAt(e.clientX, e.clientY); if (!k) return;
+        e.preventDefault();
+        if (anchor && k !== anchor) { const a = anchor; anchor = null; return check(a, k); }
+        anchor = null; start = last = k; dragging = true; paint([k]);
+      });
+      box.addEventListener('pointermove', e => {
+        if (!dragging) return;
+        const k = cellAt(e.clientX, e.clientY); if (!k) return;
+        last = k; paint(line(start, k) || [start]);
+      });
+      const up = () => {
+        if (!ctx.alive()) return window.removeEventListener('pointerup', up);
+        if (!dragging) return;
+        dragging = false;
+        if (last === start) { anchor = start; ctx.say('Ahora tocá la <b>última letra</b> de la palabra.'); }
+        else check(start, last);
+      };
+      window.addEventListener('pointerup', up);
     }
   },
 
@@ -1056,3 +1259,4 @@ $('#hudStars').onclick = showMedals;
 fitStage();
 updateHud();
 showHome();
+if (state.pending) syncSheet();   // reintenta un envío que quedó pendiente

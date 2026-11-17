@@ -142,6 +142,25 @@ button { font-family: inherit; color: inherit; cursor: pointer; border: 0; }
 .home-doc { position: absolute; left: 1060px; top: 130px; width: 270px; }
 .home-doc .doc-svg { width: 190px; margin: 26px auto 0; }
 
+/* ---------- Registro (nombre y grado) ---------- */
+.hello { position: absolute; left: 0; top: -52px; font-size: 22px; background: #fff; border-radius: 18px; padding: 6px 18px; box-shadow: 0 3px 0 rgba(43,45,66,.1); white-space: nowrap; }
+.reg { position: absolute; inset: 0; }
+.reg-card { position: absolute; left: 150px; top: 46px; width: 720px; padding: 30px 44px; display: flex; flex-direction: column; gap: 12px; }
+.reg-card h2 { margin: 0 0 6px; font-size: 40px; color: var(--purple); text-align: center; }
+.reg-card label { font-size: 25px; font-weight: 600; }
+.reg-card input {
+  font-family: inherit; font-size: 32px; font-weight: 500; color: var(--ink); padding: 12px 20px; border-radius: 20px;
+  border: 4px solid #cfd6e6; outline: none; -webkit-user-select: text; user-select: text;
+}
+.reg-card input:focus { border-color: var(--purple); }
+.reg-grades { display: flex; gap: 20px; }
+.grade { flex: 1; height: 92px; border-radius: 24px; background: #fff; border: 5px solid #cfd6e6; font-size: 38px; font-weight: 700; box-shadow: var(--shadow); }
+.grade.sel { border-color: var(--green); background: #dff7e6; color: #17803d; }
+.reg-msg { min-height: 28px; margin: 0; font-size: 22px; font-weight: 600; color: #c0392b; text-align: center; }
+.reg-card .btn.big { align-self: center; }
+.reg-doc { position: absolute; left: 960px; top: 130px; width: 300px; }
+.reg-doc .doc-svg { width: 210px; margin: 26px auto 0; }
+
 /* ---------- Mapa de aventuras ---------- */
 .map { position: absolute; inset: 0; }
 .map h2, .mod h2 { margin: 0; text-align: center; font-size: 38px; padding-top: 16px; color: var(--purple); }
@@ -304,6 +323,33 @@ button { font-family: inherit; color: inherit; cursor: pointer; border: 0; }
 .sys-btn.seen-it::after { content: '✅'; margin-left: auto; }
 .sys-btn:disabled { opacity: .45; cursor: not-allowed; }
 
+/* Completar el cuadro */
+.cuadro { width: 640px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.c-row { display: grid; grid-template-columns: 96px 170px 1fr; gap: 10px; flex: 1; align-items: stretch; }
+.c-head { flex: none; font-size: 21px; font-weight: 700; color: var(--purple); text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+.c-img { padding: 4px; display: grid; place-items: center; }
+.c-img .organ-svg { width: 86px; height: 86px; }
+.c-drop { border: 3px dashed #9aa3c2; border-radius: 16px; background: #f8faff; display: grid; place-items: center; text-align: center; font-size: 20px; font-weight: 600; line-height: 1.15; padding: 4px 8px; }
+.c-drop.filled { border-style: solid; border-color: var(--green); background: #dff7e6; animation: pop .35s ease; }
+.c-bank { flex: 1; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+.c-title { font-size: 20px; font-weight: 700; color: var(--soft); text-transform: uppercase; letter-spacing: 1px; }
+.c-names { display: flex; flex-wrap: wrap; gap: 10px; }
+.c-funcs { display: flex; flex-direction: column; gap: 10px; }
+.c-bank .chip { font-size: 21px; padding: 8px 14px; border-radius: 16px; }
+.c-bank .chip.fn { border-color: var(--teal); color: #0d7d70; font-size: 19px; text-align: left; }
+
+/* Sopa de letras */
+.sl-grid { display: grid; gap: 4px; padding: 14px; touch-action: none; flex: none; }
+.sl-cell { width: 49px; height: 49px; border-radius: 12px; background: #f4f7fd; display: grid; place-items: center; font-size: 30px; font-weight: 600; cursor: pointer; }
+.sl-cell.pick { background: var(--yellow) !important; transform: scale(1.08); }
+.sl-cell.found { font-weight: 700; }
+.sl-list { flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 5px; }
+.sl-word { font-size: 24px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
+.sl-word span { width: 34px; text-align: center; }
+.sl-word.done { color: #17803d; text-decoration: line-through; }
+.sl-word.done::after { content: '✅'; margin-left: auto; }
+.sl-list small { margin-top: 8px; font-size: 16px; color: var(--soft); }
+
 /* ---------- Ventanas emergentes ---------- */
 #overlay { position: absolute; inset: 0; z-index: 30; background: rgba(43,45,66,.55); display: grid; place-items: center; }
 #overlay[hidden] { display: none; }
@@ -334,7 +380,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; border: 0; }
 .diploma .d1 { font-size: 30px; letter-spacing: 8px; font-weight: 600; color: var(--soft); margin-top: 18px; }
 .diploma .d2 { font-size: 56px; font-weight: 700; color: var(--purple); line-height: 1.05; margin: 6px 0; }
 .diploma .d3 { font-size: 24px; margin: 8px 0; }
-.diploma .line { width: 520px; border-bottom: 4px dotted var(--ink); margin: 34px auto 6px; }
+.diploma .dname { font-size: 44px; font-weight: 700; color: var(--pink); border-bottom: 4px dotted var(--ink); width: 620px; margin: 8px auto 4px; line-height: 1.2; min-height: 56px; }
 .diploma .d4 { font-size: 30px; margin-top: 12px; }
 .diploma .dd { position: absolute; width: 120px; right: 60px; bottom: 44px; }
 .diploma .dl { position: absolute; left: 70px; bottom: 54px; font-size: 20px; color: var(--soft); text-align: left; }
