@@ -20,5 +20,14 @@ PUNTAJE
   Cada consigna vale 10 puntos al primer intento, 7 al segundo,
   4 al tercero y 1 desde el cuarto. Para cambiarlo: const PTS en app.js.
   Si el alumno repite una actividad, cuenta su mejor puntaje.
-  Puntaje máximo: módulo 1 = 120, módulo 2 = 250, módulo 3 = 380,
-  módulo 4 = 150. Total = 900.
+ 
+  El máximo es 900 puntos, que se alcanza respondiendo todas las consignas al primer intento (10 puntos cada una):
+
+Módulo	                     Puntaje máximo
+1. Conocemos nuestro cuerpo	120
+2. Los órganos principales	   250
+3. Los sistemas del cuerpo	   380
+4. Cuidamos nuestro cuerpo 	150
+                      Total	900
+
+El módulo 3 pesa más porque tiene cinco actividades, entre ellas el cuadro y la sopa de letras, que valen 100 puntos cada una.
